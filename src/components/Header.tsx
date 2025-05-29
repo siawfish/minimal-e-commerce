@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
 import { Menu, ShoppingBag } from 'lucide-react';
+import Logo from './Logo';
 
 export default function Header() {
   const { state } = useCart();
@@ -32,18 +33,7 @@ export default function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="group">
-              <h1 className={`text-xl font-bold tracking-tight transition-all duration-300 cursor-pointer relative ${
-                pathname === '/' 
-                  ? 'text-black' 
-                  : 'text-gray-700 group-hover:text-black'
-              }`}>
-                Zsar Zsar
-                {pathname === '/' && (
-                  <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-black via-gray-600 to-black animate-pulse"></div>
-                )}
-              </h1>
-            </Link>
+            <Logo />
           </div>
 
           {/* Desktop Navigation */}
