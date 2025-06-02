@@ -5,6 +5,7 @@ import { ShoppingCart, Check } from 'lucide-react';
 import { useState } from 'react';
 import SizeSelectorModal from './SizeSelectorModal';
 import Toast from './Toast';
+import numeral from 'numeral';
 
 interface ProductCardProps {
   product: Product;
@@ -50,7 +51,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
         <div className="p-0">
           <div className="aspect-square overflow-hidden bg-gray-50 relative">
             <img
-              src={product.image}
+              src={product.images[0]}
               alt={product.name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
@@ -82,7 +83,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
           <div className="p-4">
             <h3 className="font-medium text-sm tracking-wide mb-1">{product.name}</h3>
             <p className="text-sm text-gray-600 mb-2">{product.category.toUpperCase()}</p>
-            <p className="font-semibold">${product.price}</p>
+            <p className="font-semibold">₵{numeral(product.price).format('0,0')}</p>
           </div>
         </div>
       </div>

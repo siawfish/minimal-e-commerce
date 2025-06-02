@@ -6,15 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
+import { useCategories } from '@/hooks/useProducts';
 import { Menu, ShoppingBag } from 'lucide-react';
 import Logo from './Logo';
 
 export default function Header() {
   const { state } = useCart();
+  const { categories, loading: categoriesLoading } = useCategories();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Limit categories to first 3
+  const displayCategories = categories.slice(0, 3);
 
   // Helper function to determine if a link is active
   const isActiveLink = (href: string, category?: string) => {
@@ -27,10 +32,15 @@ export default function Header() {
     return pathname === href;
   };
 
+  // Helper function to format category names for display
+  const formatCategoryName = (category: string) => {
+    return category.toUpperCase();
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-[60px] md:h-[100px] items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
             <Logo />
@@ -53,36 +63,26 @@ export default function Header() {
                 <div className="absolute -bottom-2 left-1/2 w-0 h-0.5 bg-black transition-all duration-300 group-hover:w-full group-hover:left-0"></div>
               )}
             </Link>
-            <Link 
-              href="/shop?category=footwear" 
-              className={`relative text-sm font-medium transition-all duration-300 group ${
-                isActiveLink('/shop', 'footwear') 
-                  ? 'text-black' 
-                  : 'text-gray-600 hover:text-black'
-              }`}
-            >
-              <span className="relative z-10">FOOTWEAR</span>
-              {isActiveLink('/shop', 'footwear') ? (
-                <div className="absolute -bottom-2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-black to-transparent animate-in slide-in-from-bottom-1 duration-300"></div>
-              ) : (
-                <div className="absolute -bottom-2 left-1/2 w-0 h-0.5 bg-black transition-all duration-300 group-hover:w-full group-hover:left-0"></div>
-              )}
-            </Link>
-            <Link 
-              href="/shop?category=apparel" 
-              className={`relative text-sm font-medium transition-all duration-300 group ${
-                isActiveLink('/shop', 'apparel') 
-                  ? 'text-black' 
-                  : 'text-gray-600 hover:text-black'
-              }`}
-            >
-              <span className="relative z-10">APPAREL</span>
-              {isActiveLink('/shop', 'apparel') ? (
-                <div className="absolute -bottom-2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-black to-transparent animate-in slide-in-from-bottom-1 duration-300"></div>
-              ) : (
-                <div className="absolute -bottom-2 left-1/2 w-0 h-0.5 bg-black transition-all duration-300 group-hover:w-full group-hover:left-0"></div>
-              )}
-            </Link>
+            
+            {/* Dynamic category links - limited to 3 */}
+            {!categoriesLoading && displayCategories.map((category) => (
+              <Link 
+                key={category}
+                href={`/shop?category=${category}`} 
+                className={`relative text-sm font-medium transition-all duration-300 group ${
+                  isActiveLink('/shop', category) 
+                    ? 'text-black' 
+                    : 'text-gray-600 hover:text-black'
+                }`}
+              >
+                <span className="relative z-10">{formatCategoryName(category)}</span>
+                {isActiveLink('/shop', category) ? (
+                  <div className="absolute -bottom-2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-black to-transparent animate-in slide-in-from-bottom-1 duration-300"></div>
+                ) : (
+                  <div className="absolute -bottom-2 left-1/2 w-0 h-0.5 bg-black transition-all duration-300 group-hover:w-full group-hover:left-0"></div>
+                )}
+              </Link>
+            ))}
           </nav>
 
           {/* Cart */}
@@ -128,42 +128,29 @@ export default function Header() {
                       isActiveLink('/shop') ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
                     }`}></div>
                   </Link>
-                  <Link 
-                    href="/shop?category=footwear" 
-                    className={`relative text-lg font-medium transition-all duration-300 group ${
-                      isActiveLink('/shop', 'footwear') 
-                        ? 'text-black' 
-                        : 'text-gray-600 hover:text-black'
-                    }`}
-                  >
-                    <span className="relative z-10 block py-2">FOOTWEAR</span>
-                    {isActiveLink('/shop', 'footwear') ? (
-                      <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-black via-gray-600 to-black animate-in slide-in-from-left-1 duration-300"></div>
-                    ) : (
-                      <div className="absolute left-0 top-1/2 w-1 h-0 bg-black transition-all duration-300 group-hover:h-full group-hover:top-0"></div>
-                    )}
-                    <div className={`absolute left-4 top-0 w-full h-full bg-gradient-to-r from-gray-50/50 to-transparent transition-all duration-300 ${
-                      isActiveLink('/shop', 'footwear') ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
-                    }`}></div>
-                  </Link>
-                  <Link 
-                    href="/shop?category=apparel" 
-                    className={`relative text-lg font-medium transition-all duration-300 group ${
-                      isActiveLink('/shop', 'apparel') 
-                        ? 'text-black' 
-                        : 'text-gray-600 hover:text-black'
-                    }`}
-                  >
-                    <span className="relative z-10 block py-2">APPAREL</span>
-                    {isActiveLink('/shop', 'apparel') ? (
-                      <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-black via-gray-600 to-black animate-in slide-in-from-left-1 duration-300"></div>
-                    ) : (
-                      <div className="absolute left-0 top-1/2 w-1 h-0 bg-black transition-all duration-300 group-hover:h-full group-hover:top-0"></div>
-                    )}
-                    <div className={`absolute left-4 top-0 w-full h-full bg-gradient-to-r from-gray-50/50 to-transparent transition-all duration-300 ${
-                      isActiveLink('/shop', 'apparel') ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
-                    }`}></div>
-                  </Link>
+                  
+                  {/* Dynamic category links for mobile - limited to 3 */}
+                  {!categoriesLoading && displayCategories.map((category) => (
+                    <Link 
+                      key={category}
+                      href={`/shop?category=${category}`} 
+                      className={`relative text-lg font-medium transition-all duration-300 group ${
+                        isActiveLink('/shop', category) 
+                          ? 'text-black' 
+                          : 'text-gray-600 hover:text-black'
+                      }`}
+                    >
+                      <span className="relative z-10 block py-2">{formatCategoryName(category)}</span>
+                      {isActiveLink('/shop', category) ? (
+                        <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-black via-gray-600 to-black animate-in slide-in-from-left-1 duration-300"></div>
+                      ) : (
+                        <div className="absolute left-0 top-1/2 w-1 h-0 bg-black transition-all duration-300 group-hover:h-full group-hover:top-0"></div>
+                      )}
+                      <div className={`absolute left-4 top-0 w-full h-full bg-gradient-to-r from-gray-50/50 to-transparent transition-all duration-300 ${
+                        isActiveLink('/shop', category) ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
+                      }`}></div>
+                    </Link>
+                  ))}
                   
                   {/* Cart link in mobile menu */}
                   <Link 

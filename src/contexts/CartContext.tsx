@@ -33,15 +33,20 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
       );
 
       if (existingItem) {
+        const newQuantity = Math.min(existingItem.quantity + 1, product.quantity);
         const updatedItems = state.items.map(item =>
           item.product.id === product.id && item.size === size
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: newQuantity }
             : item
         );
         return {
           items: updatedItems,
           total: updatedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
         };
+      }
+
+      if (product.quantity <= 0) {
+        return state;
       }
 
       const newItems = [...state.items, { product, size, quantity: 1 }];
@@ -68,11 +73,13 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
         return cartReducer(state, { type: 'REMOVE_FROM_CART', payload: { productId, size } });
       }
 
-      const newItems = state.items.map(item =>
-        item.product.id === productId && item.size === size
-          ? { ...item, quantity }
-          : item
-      );
+      const newItems = state.items.map(item => {
+        if (item.product.id === productId && item.size === size) {
+          const validQuantity = Math.min(quantity, item.product.quantity);
+          return { ...item, quantity: validQuantity };
+        }
+        return item;
+      });
       return {
         items: newItems,
         total: newItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)

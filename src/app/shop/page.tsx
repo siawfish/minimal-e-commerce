@@ -7,30 +7,38 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import ProductFilters from '@/components/ProductFilters';
 import { Button } from '@/components/ui/button';
-import { products } from '@/data/products';
+import { useProducts } from '@/hooks/useProducts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PRODUCTS_PER_PAGE = 8;
 
 export default function Shop() {
   const searchParams = useSearchParams();
-  const [filter, setFilter] = useState<'all' | 'footwear' | 'apparel'>('all');
+  const [filter, setFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const { products, loading, error } = useProducts();
   const router = useRouter();
+  
+  // Get available categories from products
+  const availableCategories = useMemo(() => {
+    const categories = Array.from(new Set(products.map(product => product.category)));
+    return categories.sort();
+  }, [products]);
+  
   // Set initial filter based on URL parameter
   useEffect(() => {
     const category = searchParams.get('category');
-    if (category === 'footwear' || category === 'apparel') {
+    if (category && (category === 'all' || availableCategories.includes(category))) {
       setFilter(category);
     }
-  }, [searchParams]);
+  }, [searchParams, availableCategories]);
 
   // Filter products based on selected category
   const filteredProducts = useMemo(() => {
     return filter === 'all' 
       ? products 
       : products.filter(product => product.category === filter);
-  }, [filter]);
+  }, [filter, products]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
@@ -39,7 +47,7 @@ export default function Shop() {
   const currentProducts = filteredProducts.slice(startIndex, endIndex);
 
   // Reset to page 1 when filter changes
-  const handleFilterChange = (newFilter: 'all' | 'footwear' | 'apparel') => {
+  const handleFilterChange = (newFilter: string) => {
     setFilter(newFilter);
     setCurrentPage(1);
   };
@@ -51,35 +59,70 @@ export default function Shop() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white flex flex-col">
       <Header />
 
       {/* Filters and Products */}
-      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow">
         {/* Filter Section */}
-        <ProductFilters
-          filter={filter}
-          onFilterChange={handleFilterChange}
-          totalProducts={filteredProducts.length}
-          currentRange={{
-            start: startIndex + 1,
-            end: Math.min(endIndex, filteredProducts.length)
-          }}
-        />
+        {!loading && !error && (
+          <ProductFilters
+            filter={filter}
+            onFilterChange={handleFilterChange}
+            totalProducts={filteredProducts.length}
+            currentRange={{
+              start: startIndex + 1,
+              end: Math.min(endIndex, filteredProducts.length)
+            }}
+            products={products}
+          />
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="space-y-8">
+            <div className="h-16 bg-gray-200 animate-pulse rounded"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, index) => (
+                <div
+                  key={index}
+                  className="bg-gray-200 animate-pulse rounded-lg aspect-square"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-12">
+            <p className="text-red-600 mb-4">Failed to load products</p>
+            <p className="text-gray-600">Please try again later</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mt-4"
+              variant="outline"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
 
         {/* Products Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
-          {currentProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onClick={() => router.push(`/shop/${product.id}`)}
-            />
-          ))}
-        </div>
+        {!loading && !error && (
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+            {currentProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onClick={() => router.push(`/shop/${product.id}`)}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!loading && !error && totalPages > 1 && (
           <div className="flex justify-center items-center space-x-2">
             <Button
               variant="outline"
@@ -120,7 +163,7 @@ export default function Shop() {
         )}
 
         {/* No products message */}
-        {currentProducts.length === 0 && (
+        {!loading && !error && currentProducts.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No products found in this category.</p>
           </div>

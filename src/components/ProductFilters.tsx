@@ -1,50 +1,65 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { products } from '@/data/products';
 import { ChevronDown, Check } from 'lucide-react';
+import { Product } from '@/types/product';
 
 interface ProductFiltersProps {
-  filter: 'all' | 'footwear' | 'apparel';
-  onFilterChange: (filter: 'all' | 'footwear' | 'apparel') => void;
+  filter: string;
+  onFilterChange: (filter: string) => void;
   totalProducts: number;
   currentRange: {
     start: number;
     end: number;
   };
+  products: Product[];
 }
 
 export default function ProductFilters({
   filter,
   onFilterChange,
   totalProducts,
-  currentRange
+  currentRange,
+  products
 }: ProductFiltersProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const filterOptions = [
-    {
-      key: 'all' as const,
-      label: 'All Products',
-      count: products.length
-    },
-    {
-      key: 'footwear' as const,
-      label: 'Footwear',
-      count: products.filter(p => p.category === 'footwear').length
-    },
-    {
-      key: 'apparel' as const,
-      label: 'Apparel',
-      count: products.filter(p => p.category === 'apparel').length
-    }
-  ];
+  // Dynamically derive categories from products
+  const availableCategories = useMemo(() => {
+    const categories = Array.from(new Set(products.map(product => product.category)));
+    return categories.sort();
+  }, [products]);
+
+  // Build filter options dynamically
+  const filterOptions = useMemo(() => {
+    const options = [
+      {
+        key: 'all',
+        label: 'All Products',
+        count: products.length
+      }
+    ];
+
+    // Add category-specific filters
+    availableCategories.forEach(category => {
+      const categoryProducts = products.filter(p => p.category === category);
+      if (categoryProducts.length > 0) {
+        options.push({
+          key: category,
+          label: category.charAt(0).toUpperCase() + category.slice(1),
+          count: categoryProducts.length
+        });
+      }
+    });
+
+    return options;
+  }, [products, availableCategories]);
 
   const activeFilter = filterOptions.find(option => option.key === filter);
 
-  const handleDropdownSelect = (selectedFilter: 'all' | 'footwear' | 'apparel') => {
+  const handleDropdownSelect = (selectedFilter: string) => {
     onFilterChange(selectedFilter);
     setIsDropdownOpen(false);
   };

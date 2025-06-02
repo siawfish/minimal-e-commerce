@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
-import { products } from '@/data/products';
+import { useProduct } from '@/hooks/useProducts';
 import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
-import { ArrowLeft, Heart, ShoppingBag, Check } from 'lucide-react';
+import { ArrowLeft, Heart, ShoppingBag, Check, Loader2 } from 'lucide-react';
+import numeral from 'numeral';
 
 export default function ProductDetail() {
   const [selectedSize, setSelectedSize] = useState<string>('');
@@ -16,12 +17,10 @@ export default function ProductDetail() {
   const { addToCart } = useCart();
   const { id } = useParams();
   const router = useRouter();
-  const product = products.find(p => p.id === id);
-
-  if (!product) return null;
+  const { product, loading, error } = useProduct(id as string);
 
   const handleAddToCart = async () => {
-    if (selectedSize && !isAddingToCart) {
+    if (selectedSize && !isAddingToCart && product) {
       setIsAddingToCart(true);
       
       // Simulate API call with smooth animation
@@ -38,6 +37,40 @@ export default function ProductDetail() {
       }, 1500);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="flex items-center justify-center py-32">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center py-32">
+            <p className="text-red-600 mb-4">
+              {error || 'Product not found'}
+            </p>
+            <button
+              onClick={() => router.push('/shop')}
+              className="text-gray-600 hover:text-black transition-colors"
+            >
+              Return to Shop
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -62,7 +95,7 @@ export default function ProductDetail() {
           <div className="relative">
             <div className="aspect-square overflow-hidden bg-gray-50 relative group">
               <img
-                src={product.image}
+                src={product.images[0]}
                 alt={product.name}
                 className={`h-full w-full object-cover transition-all duration-700 ease-out ${
                   isImageLoaded ? 'scale-100 opacity-100' : 'scale-105 opacity-0'
@@ -97,8 +130,8 @@ export default function ProductDetail() {
                   {product.name}
                 </h1>
                 <div className="flex items-baseline space-x-4">
-                  <p className="text-3xl font-semibold">${product.price}</p>
-                  <span className="text-sm text-gray-500 tracking-wide">USD</span>
+                  <p className="text-3xl font-semibold">₵{numeral(product.price).format('0,0')}</p>
+                  <span className="text-sm text-gray-500 tracking-wide">GHS</span>
                 </div>
               </div>
             </div>
@@ -198,15 +231,19 @@ export default function ProductDetail() {
             </div>
             
             {/* Additional Info */}
-            <div className="pt-8 border-t border-gray-100">
-              <div className="grid grid-cols-2 gap-6 text-sm">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2 tracking-wide">SHIPPING</h4>
-                  <p className="text-gray-600">Free worldwide shipping</p>
+            <div className="space-y-4 pt-8 border-t border-gray-100">
+              <div className="grid grid-cols-1 gap-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Free Shipping</span>
+                  <span className="font-medium">Over ₵{numeral(200).format('0,0')}</span>
                 </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2 tracking-wide">RETURNS</h4>
-                  <p className="text-gray-600">30-day return policy</p>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Returns</span>
+                  <span className="font-medium">30 days</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Delivery</span>
+                  <span className="font-medium">3-7 business days</span>
                 </div>
               </div>
             </div>

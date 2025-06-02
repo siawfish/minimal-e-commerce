@@ -7,6 +7,7 @@ import { useCart } from '@/contexts/CartContext';
 import { ArrowLeft, Minus, Plus, X, ShoppingBag } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import numeral from 'numeral';
 
 export default function CartPage() {
   const { state, removeFromCart, updateQuantity, clearCart } = useCart();
@@ -35,6 +36,12 @@ export default function CartPage() {
         return newSet;
       });
     }, 300);
+  };
+
+  const handleQuantityChange = (productId: string, size: string, newQuantity: number, availableQuantity: number) => {
+    // Prevent quantity from exceeding available stock
+    const validQuantity = Math.min(newQuantity, availableQuantity);
+    updateQuantity(productId, size, validQuantity);
   };
 
   return (
@@ -83,7 +90,7 @@ export default function CartPage() {
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal</span>
-                    <span>${state.total.toFixed(2)}</span>
+                    <span>₵{numeral(state.total).format('0,0')}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Shipping</span>
@@ -91,14 +98,14 @@ export default function CartPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Tax</span>
-                    <span>${(state.total * 0.08).toFixed(2)}</span>
+                    <span>₵{numeral(state.total * 0.08).format('0,0')}</span>
                   </div>
                 </div>
                 
                 <div className="border-t pt-4 mb-6">
                   <div className="flex justify-between font-medium">
                     <span>Total</span>
-                    <span>${(state.total * 1.08).toFixed(2)}</span>
+                    <span>₵{numeral(state.total * 1.08).format('0,0')}</span>
                   </div>
                 </div>
                 
@@ -127,20 +134,20 @@ export default function CartPage() {
                       <p className="text-sm font-medium text-gray-900">Express Delivery</p>
                       <p className="text-xs text-gray-500">2-3 business days</p>
                     </div>
-                    <span className="text-sm text-gray-900">$9.99</span>
+                    <span className="text-sm text-gray-900">₵9.99</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-sm font-medium text-gray-900">Next Day Delivery</p>
                       <p className="text-xs text-gray-500">Order by 2PM</p>
                     </div>
-                    <span className="text-sm text-gray-900">$19.99</span>
+                    <span className="text-sm text-gray-900">₵19.99</span>
                   </div>
                 </div>
                 
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <p className="text-xs text-gray-500">
-                    Free shipping on orders over $50. Delivery times may vary during peak seasons.
+                    Free shipping on orders over ₵50. Delivery times may vary during peak seasons.
                   </p>
                 </div>
               </div>
@@ -163,7 +170,7 @@ export default function CartPage() {
                       {/* Product Image */}
                       <div className="relative mb-4">
                         <img
-                          src={item.product.image}
+                          src={item.product.images[0]}
                           alt={item.product.name}
                           className="w-full h-48 object-cover bg-gray-100"
                         />
@@ -187,7 +194,7 @@ export default function CartPage() {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-500">Size: {item.size}</span>
                             <span className="font-semibold text-gray-900">
-                              ${item.product.price}
+                              ₵{numeral(item.product.price).format('0,0')}
                             </span>
                           </div>
                         </div>
@@ -200,7 +207,7 @@ export default function CartPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => updateQuantity(item.product.id, item.size, item.quantity - 1)}
+                                onClick={() => handleQuantityChange(item.product.id, item.size, item.quantity - 1, item.product.quantity)}
                                 className="h-7 w-7 p-0 hover:bg-gray-100"
                               >
                                 <Minus className="h-3 w-3" />
@@ -209,8 +216,9 @@ export default function CartPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => updateQuantity(item.product.id, item.size, item.quantity + 1)}
+                                onClick={() => handleQuantityChange(item.product.id, item.size, item.quantity + 1, item.product.quantity)}
                                 className="h-7 w-7 p-0 hover:bg-gray-100"
+                                disabled={item.quantity >= item.product.quantity}
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
@@ -218,8 +226,20 @@ export default function CartPage() {
                           </div>
                           
                           <span className="text-lg font-bold text-gray-900">
-                            ${(item.product.price * item.quantity).toFixed(2)}
+                            ₵{numeral(item.product.price * item.quantity).format('0,0')}
                           </span>
+                        </div>
+                        
+                        {/* Stock Information */}
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>
+                            {item.product.quantity - item.quantity} left in stock
+                          </span>
+                          {item.quantity >= item.product.quantity && (
+                            <span className="text-orange-600 font-medium">
+                              Max quantity reached
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
