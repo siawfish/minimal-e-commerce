@@ -7,21 +7,20 @@ import { useCart } from '@/contexts/CartContext';
 import { ArrowLeft, Minus, Plus, X, ShoppingBag } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import CheckoutDialog from '@/components/CheckoutDialog';
 import numeral from 'numeral';
 
 export default function CartPage() {
   const { state, removeFromCart, updateQuantity, clearCart } = useCart();
   const router = useRouter();
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
+  const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
 
   const totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalWithTax = state.total * 1.08;
 
-  const handleCheckout = async () => {
-    setIsCheckingOut(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    alert('Checkout functionality would be implemented here');
-    setIsCheckingOut(false);
+  const handleCheckout = () => {
+    setIsCheckoutDialogOpen(true);
   };
 
   const handleRemoveItem = async (productId: string, size: string) => {
@@ -112,9 +111,8 @@ export default function CartPage() {
                 <Button 
                   className="w-full bg-black text-white hover:bg-gray-800"
                   onClick={handleCheckout}
-                  disabled={isCheckingOut}
                 >
-                  {isCheckingOut ? 'Processing...' : 'Checkout'}
+                  Checkout
                 </Button>
               </div>
               
@@ -265,6 +263,13 @@ export default function CartPage() {
       </div>
       
       <Footer />
+      
+      {/* Checkout Dialog */}
+      <CheckoutDialog
+        isOpen={isCheckoutDialogOpen}
+        onClose={() => setIsCheckoutDialogOpen(false)}
+        total={totalWithTax}
+      />
     </div>
   );
 } 

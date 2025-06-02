@@ -3,6 +3,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  addDoc,
+  setDoc,
   query,
   where,
   orderBy,
@@ -10,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Product } from '@/types/product';
+import { CustomerData, TransactionData } from '@/types/checkout';
 
 // Get all products
 export async function getProducts(): Promise<Product[]> {
@@ -129,6 +132,72 @@ export async function getProductCategories(): Promise<string[]> {
     return Array.from(categories).sort();
   } catch (error) {
     console.error('Error fetching product categories:', error);
+    throw error;
+  }
+}
+
+// Save transaction to Firestore
+export async function saveTransaction(transactionData: Omit<TransactionData, 'id'>): Promise<string> {
+  try {
+    const docRef = await addDoc(collection(db, 'transactions'), {
+      ...transactionData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    
+    return docRef.id;
+  } catch (error) {
+    console.error('Error saving transaction:', error);
+    throw error;
+  }
+}
+
+// Save customer data to Firestore
+export async function saveCustomer(customerData: CustomerData): Promise<void> {
+  try {
+    // Use email as document ID to avoid duplicates
+    const customerDocRef = doc(db, 'customers', customerData.email);
+    
+    await setDoc(customerDocRef, {
+      ...customerData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    
+  } catch (error) {
+    console.error('Error saving customer:', error);
+    throw error;
+  }
+}
+
+// Update transaction status
+export async function updateTransactionStatus(transactionId: string, status: 'success' | 'failed' | 'pending'): Promise<void> {
+  try {
+    const transactionRef = doc(db, 'transactions', transactionId);
+    await setDoc(transactionRef, {
+      status,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    
+  } catch (error) {
+    console.error('Error updating transaction status:', error);
+    throw error;
+  }
+}
+
+// Check if customer exists
+export async function getCustomer(email: string): Promise<CustomerData | null> {
+  try {
+    const customerRef = doc(db, 'customers', email);
+    const customerSnap = await getDoc(customerRef);
+    
+    if (customerSnap.exists()) {
+      return customerSnap.data() as CustomerData;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching customer:', error);
     throw error;
   }
 } 
