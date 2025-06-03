@@ -36,7 +36,7 @@ export default function Toast({ isVisible, product, size, onClose }: ToastProps)
             <p className="text-sm font-medium text-gray-900 mb-1">Added to cart</p>
             <div className="flex items-center space-x-2">
               <img
-                src={product.image}
+                src={product.images[0]}
                 alt={product.name}
                 className="w-8 h-8 object-cover rounded-lg bg-gray-50 flex-shrink-0"
               />

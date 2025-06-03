@@ -13,10 +13,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 import { saveTransaction, saveCustomer, updateTransactionStatus } from '@/lib/firestore';
-import { CustomerData, TransactionData, PaystackResponse } from '@/types/checkout';
+import { TransactionData } from '@/types/checkout';
 import numeral from 'numeral';
-import { X, User, Mail, Phone, MapPin, CreditCard } from 'lucide-react';
+import { X, User, Mail, Phone, MapPin, CreditCard, Check, Info } from 'lucide-react';
 
 // Validation schema
 const checkoutSchema = z.object({
@@ -34,13 +35,17 @@ interface CheckoutDialogProps {
   total: number;
 }
 
-// Add proper typing for Paystack
-interface PaystackPopInterface {
-  setup: (config: PaystackConfig) => {
-    openIframe: () => void;
-  };
+// Paystack response interface
+interface PaystackResponse {
+  reference: string;
+  status: string;
+  trans: string;
+  transaction: string;
+  trxref: string;
+  message: string;
 }
 
+// Paystack configuration interface
 interface PaystackConfig {
   key: string;
   email: string;
@@ -59,16 +64,23 @@ interface PaystackConfig {
   onClose: () => void;
 }
 
+// Global Paystack interface
 declare global {
   interface Window {
-    PaystackPop?: PaystackPopInterface;
+    PaystackPop?: {
+      setup: (config: PaystackConfig) => {
+        openIframe: () => void;
+      };
+    };
   }
 }
 
 export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialogProps) {
   const { state, clearCart } = useCart();
+  const { toasts, success, error, removeToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState<'form' | 'payment' | 'success'>('form');
+  const [isPaystackOpen, setIsPaystackOpen] = useState(false);
 
   const {
     register,
@@ -80,31 +92,23 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
     mode: 'onChange',
   });
 
-  const initializePaystack = (): Promise<PaystackPopInterface> => {
-    return new Promise<PaystackPopInterface>((resolve, reject) => {
-      // Check if PaystackPop is already loaded
-      if (typeof window !== 'undefined' && window.PaystackPop) {
-        resolve(window.PaystackPop);
+  const generateReference = () => {
+    return `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  const loadPaystackScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (window.PaystackPop) {
+        resolve(true);
         return;
       }
 
-      // Load Paystack script
       const script = document.createElement('script');
       script.src = 'https://js.paystack.co/v1/inline.js';
-      script.onload = () => {
-        if (window.PaystackPop) {
-          resolve(window.PaystackPop);
-        } else {
-          reject(new Error('Paystack failed to load'));
-        }
-      };
-      script.onerror = () => reject(new Error('Failed to load Paystack script'));
+      script.onload = () => resolve(!!window.PaystackPop);
+      script.onerror = () => resolve(false);
       document.head.appendChild(script);
     });
-  };
-
-  const generateReference = () => {
-    return `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
   const onSubmit = async (formData: CheckoutFormData) => {
@@ -113,7 +117,6 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
     try {
       // Generate transaction reference
       const reference = generateReference();
-      const amountInKobo = Math.round(total * 100); // Convert to kobo (Paystack expects amount in kobo)
 
       // Prepare transaction data
       const transactionData: Omit<TransactionData, 'id'> = {
@@ -140,14 +143,18 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
       // Save initial transaction (pending status)
       const transactionId = await saveTransaction(transactionData);
 
-      // Initialize Paystack
-      const PaystackPop = await initializePaystack();
+      // Load Paystack script
+      const isPaystackLoaded = await loadPaystackScript();
+      
+      if (!isPaystackLoaded || !window.PaystackPop) {
+        throw new Error('Failed to load Paystack payment system');
+      }
 
       // Configure Paystack payment
-      const handler = PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '', // Handle undefined case
+      const handler = window.PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: formData.email,
-        amount: amountInKobo,
+        amount: Math.round(total * 100), // Amount in kobo
         currency: 'GHS',
         ref: reference,
         metadata: {
@@ -170,50 +177,92 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
             }
           ]
         },
-        callback: async function(response: PaystackResponse) {
-          try {
-            if (response.status === 'success') {
-              // Update transaction status to success
-              await updateTransactionStatus(transactionId, 'success');
-              
-              // Save customer data
-              await saveCustomer(formData);
-              
-              // Clear cart
-              clearCart();
-              
-              // Show success state
-              setCurrentStep('success');
-            } else {
-              // Update transaction status to failed
-              await updateTransactionStatus(transactionId, 'failed');
-              alert('Payment failed. Please try again.');
-            }
-          } catch (error) {
-            console.error('Error handling payment callback:', error);
-            alert('An error occurred while processing your payment. Please contact support.');
+        callback: function(response: PaystackResponse) {
+          console.log('Payment response:', response);
+          setIsPaystackOpen(false); // Hide Paystack state
+          
+          if (response.status === 'success') {
+            // Handle successful payment asynchronously
+            updateTransactionStatus(transactionId, 'success')
+              .then(() => saveCustomer(formData))
+              .then(() => {
+                clearCart();
+                setCurrentStep('success');
+                success(
+                  'Payment Successful!',
+                  'Your order has been confirmed. You will receive a confirmation email shortly.',
+                  6000
+                );
+              })
+              .catch((err) => {
+                console.error('Error handling payment success:', err);
+                error(
+                  'Payment Successful',
+                  'Your payment was successful but there was an error saving your information. Please contact support.',
+                  8000
+                );
+              })
+              .finally(() => {
+                setIsProcessing(false);
+              });
+          } else {
+            // Handle failed payment
+            updateTransactionStatus(transactionId, 'failed')
+              .then(() => {
+                error(
+                  'Payment Failed',
+                  'Your payment could not be processed. Please try again or contact support if the problem persists.',
+                  6000
+                );
+              })
+              .catch((err) => {
+                console.error('Error updating transaction status:', err);
+                error(
+                  'Payment Error',
+                  'There was an error processing your payment. Please contact support.',
+                  6000
+                );
+              })
+              .finally(() => {
+                setIsProcessing(false);
+              });
           }
-          setIsProcessing(false);
         },
         onClose: function() {
+          console.log('Payment dialog closed');
+          setIsPaystackOpen(false); // Hide Paystack state
           // Update transaction status to failed if user closes payment popup
-          updateTransactionStatus(transactionId, 'failed').catch(console.error);
-          setIsProcessing(false);
+          updateTransactionStatus(transactionId, 'failed')
+            .catch((err) => {
+              console.error('Error updating transaction status on close:', err);
+            })
+            .finally(() => {
+              setIsProcessing(false);
+            });
         }
       });
 
-      // Open payment popup
-      handler.openIframe();
+      // Set Paystack state and open popup
+      setIsPaystackOpen(true);
+      
+      // Small delay to ensure state update, then open popup
+      setTimeout(() => {
+        handler.openIframe();
+      }, 100);
 
-    } catch (error) {
-      console.error('Checkout error:', error);
-      alert('An error occurred during checkout. Please try again.');
+    } catch (err) {
+      console.error('Checkout error:', err);
+      error(
+        'Checkout Error',
+        'An error occurred during checkout. Please try again or contact support if the problem persists.',
+        6000
+      );
       setIsProcessing(false);
     }
   };
 
-  const handleClose = () => {
-    if (!isProcessing) {
+  const handleDialogClose = () => {
+    if (!isProcessing && !isPaystackOpen) {
       reset();
       setCurrentStep('form');
       onClose();
@@ -342,7 +391,7 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
         Thank you for your order. You will receive a confirmation email shortly.
       </p>
       <Button
-        onClick={handleClose}
+        onClick={handleDialogClose}
         className="bg-black text-white hover:bg-gray-800"
       >
         Continue Shopping
@@ -351,10 +400,15 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
+    <>
+      <Dialog open={isOpen && !isPaystackOpen} onOpenChange={handleDialogClose}>
+        <DialogContent 
+          className="sm:max-w-md max-h-[90vh] overflow-y-auto"
+          style={{
+            zIndex: isPaystackOpen ? -1 : 50, // Lower z-index when Paystack is open
+          }}
+        >
+          <DialogHeader>
             <div>
               <DialogTitle>
                 {currentStep === 'form' && 'Checkout'}
@@ -366,24 +420,70 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
                 </DialogDescription>
               )}
             </div>
-            {!isProcessing && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClose}
-                className="h-8 w-8 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </DialogHeader>
+          </DialogHeader>
 
-        <div className="mt-4">
-          {currentStep === 'form' && renderFormStep()}
-          {currentStep === 'success' && renderSuccessStep()}
-        </div>
-      </DialogContent>
-    </Dialog>
+          <div className="mt-4">
+            {currentStep === 'form' && renderFormStep()}
+            {currentStep === 'success' && renderSuccessStep()}
+          </div>
+        </DialogContent>
+        
+        {/* Overlay for when Paystack is open */}
+        {isPaystackOpen && (
+          <div 
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm"
+            style={{ zIndex: 40 }}
+          >
+            <div className="flex items-center justify-center min-h-screen">
+              <div className="text-white text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                <p>Loading payment...</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* Toast Container */}
+      <div className="fixed top-6 right-6 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <div key={toast.id}>
+            <div className="transform transition-all duration-200 ease-in-out translate-x-0 opacity-100">
+              <div className={`bg-white border shadow-lg rounded-lg p-4 min-w-[300px] max-w-md ${
+                toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-900' :
+                toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-900' :
+                'bg-blue-50 border-blue-200 text-blue-900'
+              }`}>
+                <div className="flex items-start space-x-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    toast.type === 'success' ? 'bg-green-500 text-white' :
+                    toast.type === 'error' ? 'bg-red-500 text-white' :
+                    'bg-blue-500 text-white'
+                  }`}>
+                    {toast.type === 'success' && <Check className="w-3.5 h-3.5" />}
+                    {toast.type === 'error' && <X className="w-3.5 h-3.5" />}
+                    {toast.type === 'info' && <Info className="w-3.5 h-3.5" />}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">{toast.title}</p>
+                    {toast.description && (
+                      <p className="text-xs mt-1 opacity-80">{toast.description}</p>
+                    )}
+                  </div>
+                  
+                  <button
+                    onClick={() => removeToast(toast.id)}
+                    className="w-5 h-5 flex items-center justify-center hover:bg-black/10 rounded-full transition-colors flex-shrink-0"
+                  >
+                    <X className="w-3 h-3 opacity-60" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 } 

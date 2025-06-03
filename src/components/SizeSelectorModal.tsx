@@ -69,7 +69,7 @@ export default function SizeSelectorModal({
           {/* Product Info */}
           <div className="flex items-center space-x-4">
             <img
-              src={product.image}
+              src={product.images[0]}
               alt={product.name}
               className="h-16 w-16 object-cover rounded-lg bg-gray-50"
             />

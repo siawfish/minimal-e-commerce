@@ -102,31 +102,59 @@ The system will automatically create the following collections:
 3. User fills in delivery information
 4. Form validation ensures all fields are properly filled
 5. Transaction is created in Firestore with "pending" status
-6. Paystack payment popup opens
-7. User completes payment
-8. Transaction status is updated based on payment result
-9. If successful, customer data is saved and cart is cleared
+6. Paystack inline script is loaded dynamically
+7. Paystack payment popup opens
+8. User completes payment
+9. Transaction status is updated based on payment result
+10. If successful, customer data is saved and cart is cleared
 
-### 2. Payment Flow
+### 2. Payment Integration
 
-```mermaid
-graph TD
-    A[User clicks Checkout] --> B[Form Dialog Opens]
-    B --> C[User fills form]
-    C --> D[Form validation]
-    D --> E[Create pending transaction]
-    E --> F[Initialize Paystack]
-    F --> G[Open payment popup]
-    G --> H{Payment successful?}
-    H -->|Yes| I[Update transaction to success]
-    H -->|No| J[Update transaction to failed]
-    I --> K[Save customer data]
-    K --> L[Clear cart]
-    L --> M[Show success message]
-    J --> N[Show error message]
+The implementation uses Paystack's inline JavaScript library, which is loaded dynamically:
+
+```typescript
+// Load Paystack script dynamically
+const loadPaystackScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (window.PaystackPop) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.onload = () => resolve(!!window.PaystackPop);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+};
 ```
 
-### 3. Error Handling
+### 3. Payment Configuration
+
+```typescript
+const handler = window.PaystackPop.setup({
+  key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+  email: formData.email,
+  amount: Math.round(total * 100), // Amount in kobo
+  currency: 'GHS',
+  ref: reference,
+  metadata: {
+    transactionId,
+    custom_fields: [
+      // Customer information for delivery
+    ]
+  },
+  callback: async function(response) {
+    // Handle successful payment
+  },
+  onClose: function() {
+    // Handle payment popup close
+  }
+});
+```
+
+### 4. Error Handling
 
 - Network errors during transaction creation
 - Paystack initialization failures
@@ -156,11 +184,11 @@ Use Paystack test keys for development:
 
 ## Dependencies
 
-- `@paystack/inline-js`: Paystack payment integration
 - `react-hook-form`: Form handling and validation
 - `@hookform/resolvers`: Form validation resolvers
 - `zod`: Schema validation
 - `firebase`: Firestore database operations
+- **Paystack Inline JS**: Loaded dynamically from CDN for payment processing
 
 ## Troubleshooting
 
