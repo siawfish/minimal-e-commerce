@@ -154,7 +154,7 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
       const handler = window.PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: formData.email,
-        amount: Math.round(total * 100), // Amount in kobo
+        amount: Math.round(state.total * 100), // Amount in kobo (excluding tax)
         currency: 'GHS',
         ref: reference,
         metadata: {
@@ -345,17 +345,9 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
       {/* Order Summary */}
       <div className="border-t pt-4 space-y-2">
         <h4 className="font-medium text-gray-900">Order Summary</h4>
-        <div className="flex justify-between text-sm">
-          <span>Subtotal</span>
-          <span>₵{numeral(state.total).format('0,0')}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span>Tax (8%)</span>
-          <span>₵{numeral(state.total * 0.08).format('0,0')}</span>
-        </div>
-        <div className="flex justify-between font-medium border-t pt-2">
+        <div className="flex justify-between font-medium">
           <span>Total</span>
-          <span>₵{numeral(total).format('0,0')}</span>
+          <span>₵{numeral(state.total).format('0,0')}</span>
         </div>
       </div>
 
@@ -370,7 +362,7 @@ export default function CheckoutDialog({ isOpen, onClose, total }: CheckoutDialo
         ) : (
           <>
             <CreditCard className="h-4 w-4 mr-2" />
-            Pay ₵{numeral(total).format('0,0')}
+            Pay ₵{numeral(state.total).format('0,0')}
           </>
         )}
       </Button>

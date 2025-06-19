@@ -5,6 +5,7 @@ import { ShoppingCart, Check } from 'lucide-react';
 import { useState } from 'react';
 import SizeSelectorModal from './SizeSelectorModal';
 import Toast from './Toast';
+import ImageCarousel from './ImageCarousel';
 import numeral from 'numeral';
 
 interface ProductCardProps {
@@ -49,11 +50,10 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="p-0">
-          <div className="aspect-square overflow-hidden bg-gray-50 relative">
-            <img
-              src={product.images[0]}
+          <div className="relative">
+            <ImageCarousel 
+              images={product.images}
               alt={product.name}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
             
             {/* Add to Cart Button */}

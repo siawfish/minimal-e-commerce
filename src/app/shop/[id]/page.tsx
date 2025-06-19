@@ -14,6 +14,7 @@ export default function ProductDetail() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { addToCart } = useCart();
   const { id } = useParams();
   const router = useRouter();
@@ -92,11 +93,12 @@ export default function ProductDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
           
           {/* Product Image */}
-          <div className="relative">
+          <div className="relative space-y-4">
+            {/* Main Image */}
             <div className="aspect-square overflow-hidden bg-gray-50 relative group">
               <img
-                src={product.images[0]}
-                alt={product.name}
+                src={product.images[selectedImageIndex]}
+                alt={`${product.name} - Image ${selectedImageIndex + 1}`}
                 className={`h-full w-full object-cover transition-all duration-700 ease-out ${
                   isImageLoaded ? 'scale-100 opacity-100' : 'scale-105 opacity-0'
                 }`}
@@ -111,6 +113,32 @@ export default function ProductDetail() {
                 <Heart className="h-5 w-5 text-gray-700 group-hover:text-red-500 transition-colors duration-300" />
               </button>
             </div>
+            
+            {/* Image Thumbnails */}
+            {product.images.length > 1 && (
+              <div className="grid grid-cols-4 gap-3">
+                {product.images.map((image, index) => (
+                  <button
+                    key={index}
+                    className={`aspect-square overflow-hidden bg-gray-50 transition-all duration-300 hover:scale-105 ${
+                      selectedImageIndex === index 
+                        ? 'ring-2 ring-black ring-offset-2' 
+                        : 'ring-1 ring-gray-200 hover:ring-gray-400'
+                    }`}
+                    onClick={() => {
+                      setSelectedImageIndex(index);
+                      setIsImageLoaded(false);
+                    }}
+                  >
+                    <img
+                      src={image}
+                      alt={`${product.name} - Thumbnail ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Product Info */}
