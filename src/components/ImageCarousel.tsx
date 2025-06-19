@@ -7,9 +7,10 @@ interface ImageCarouselProps {
   images: string[];
   alt: string;
   className?: string;
+  showIndicators?: boolean;
 }
 
-export default function ImageCarousel({ images, alt, className = '' }: ImageCarouselProps) {
+export default function ImageCarousel({ images, alt, className = '', showIndicators = true }: ImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Auto-advance carousel if there are multiple images - always auto-play
@@ -87,7 +88,7 @@ export default function ImageCarousel({ images, alt, className = '' }: ImageCaro
         )}
         
         {/* Dot Indicators - Only show if there are multiple images */}
-        {images.length > 1 && (
+        {showIndicators && images.length > 1 && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
             {images.map((_, index) => (
               <button

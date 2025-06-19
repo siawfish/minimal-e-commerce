@@ -54,6 +54,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
             <ImageCarousel 
               images={product.images}
               alt={product.name}
+              showIndicators={false}
             />
             
             {/* Add to Cart Button */}
